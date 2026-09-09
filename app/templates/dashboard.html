@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block content %}
+<h1>CDM Dashboard</h1>
+<div class="grid stats"><div><b>{{ gross }}</b><small>Gross revenue</small></div><div><b>{{ venue }}</b><small>Venue share</small></div>
+<div><b>{{ net }}</b><small>CDM net</small></div><div><b>{{ plays30 }}</b><small>Plays, last 30 days</small></div></div>
+<h2>Machines</h2><div class="grid">{% for x in cards %}<article><h3>{{ x.machine.name }}</h3>
+<p>{{ x.machine.location.name if x.machine.location else "Unassigned" }}</p><strong>{{ "{:,}".format(x.plays) }}</strong> lifetime plays
+<p><a href="/collection?location_id={{ x.machine.location_id }}">Collection</a> · <a href="/maintenance?location_id={{ x.machine.location_id }}">Service</a></p></article>{% endfor %}</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cdm-ops-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cdm_ops}
+      POSTGRES_USER: ${POSTGRES_USER:-cdm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [cdm]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cdm} -d ${POSTGRES_DB:-cdm_ops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    container_name: cdm-ops
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://$${POSTGRES_USER:-cdm}:$${POSTGRES_PASSWORD}@db:5432/$${POSTGRES_DB:-cdm_ops}
+      APP_SECRET: $${APP_SECRET:?Set APP_SECRET in .env}
+      SCRAPER_API_KEY: $${SCRAPER_API_KEY:?Set SCRAPER_API_KEY in .env}
+      RAW_DATA_DIR: /data/raw
+      TZ: America/Los_Angeles
+    volumes:
+      - ./data:/data
+      - ./imports:/imports:ro
+    ports:
+      - "${APP_PORT:-8080}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [cdm]
+
+  backup:
+    image: postgres:16-alpine
+    container_name: cdm-ops-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-cdm_ops}
+      PGUSER: ${POSTGRES_USER:-cdm}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      TZ: America/Los_Angeles
+    volumes:
+      - ./data/backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          pg_dump --format=custom --file="/backups/cdm_ops_$$(date +%Y%m%d_%H%M%S).dump"
+          find /backups -type f -mtime +30 -delete
+          sleep 86400
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [cdm]
+
+volumes:
+  postgres_data:
+
+networks:
+  cdm:

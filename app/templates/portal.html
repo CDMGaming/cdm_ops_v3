@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>CDM Pinball — {{location.name}} Collections</title>
+<link rel="stylesheet" href="/static/style.css"></head>
+<body><main>
+<h1>CDM Pinball Collections</h1>
+<h2>{{location.name}}</h2>
+
+{% if not receipts %}
+<p>No collections recorded yet.</p>
+{% endif %}
+
+{% for r in receipts %}
+<article class="card">
+<p><strong>{{r.collection.collected_at.strftime('%B %-d, %Y')}}</strong>
+&middot; {{r.collection.collected_at.strftime('%-I:%M %p')}}</p>
+
+<table>
+<tr><th>Machine</th><th>Plays</th><th>Revenue</th></tr>
+{% for l in r.lines %}
+<tr><td>{{l.machine}}</td><td>{{l.plays if l.plays is not none else "—"}}</td><td>${{"%.2f"|format(l.revenue)}}</td></tr>
+{% endfor %}
+<tr><th>Total</th><th></th><th>${{"%.2f"|format(r.collection.gross_total)}}</th></tr>
+</table>
+
+<p>
+Gross Revenue: ${{"%.2f"|format(r.collection.gross_total)}}<br>
+{{location.name}} Share: ${{"%.2f"|format(r.collection.venue_share)}}<br>
+CDM Share: ${{"%.2f"|format(r.collection.cdm_net)}}
+</p>
+
+<p><small>Collected by {{r.collection.cdm_rep or "—"}}{% if r.collection.venue_rep %} &middot; received by {{r.collection.venue_rep}}{% endif %}</small></p>
+{% if r.collection.notes %}<p><small>Notes: {{r.collection.notes}}</small></p>{% endif %}
+</article>
+{% endfor %}
+
+</main></body></html>

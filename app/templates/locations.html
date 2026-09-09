@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<h1>Locations</h1>{% for l in locations %}<article><h3>{{l.name}}</h3><p>{{l.address or ""}} · Venue share {{(l.venue_share_pct*100)|round(2)}}%</p>
+<ul>{% for m in l.machines %}<li>{{m.name}}</li>{% endfor %}</ul>
+<p><small>Portal link (send this to the venue — no login needed, shows only their own collections):<br>
+<code>{{request.url_for('location_portal', token=l.access_token)}}</code></small></p>
+<form method="post" action="/locations/{{l.id}}/regenerate-portal-link" onsubmit="return confirm('This invalidates the current portal link -- anyone with the old link loses access. Continue?');">
+<button type="submit">Regenerate portal link</button></form>
+</article>{% endfor %}
+<h2>Add location</h2><form method="post" class="card"><input name="name" placeholder="Venue name" required><input name="address" placeholder="Address"><input name="venue_share_pct" type="number" step="0.001" value="0.20"><button>Add location</button></form>
+{% endblock %}

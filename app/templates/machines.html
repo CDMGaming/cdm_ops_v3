@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<h1>Machines</h1><div class="grid">{% for m in machines %}<article><h3>{{m.name}}</h3><p>{{m.location.name if m.location else "Unassigned"}}</p>
+<p>Stern ID: {{m.stern_machine_id or "—"}}<br>Model: {{m.model or "—"}}<br>Baseline: {{m.odometer_baseline}}</p>
+<details><summary>Location history</summary><ul>{% for h in m.location_history %}<li>{{h.location.name}}: {{h.start_date}} – {{h.end_date or "present"}}</li>{% endfor %}</ul></details>
+<details><summary>Move machine</summary><form method="post" action="/machines/{{m.id}}/move">
+<select name="new_location_id" required>{% for l in locations %}<option value="{{l.id}}" {% if m.location_id==l.id %}disabled{% endif %}>{{l.name}}</option>{% endfor %}</select>
+<input name="effective_date" type="date" required><input name="notes" placeholder="Notes (optional)"><button>Move</button></form></details>
+</article>{% endfor %}</div>
+<h2>Add machine</h2><form method="post" class="card"><input name="name" placeholder="Game name" required><select name="location_id">{% for l in locations %}<option value="{{l.id}}">{{l.name}}</option>{% endfor %}</select>
+<input name="manufacturer" value="Stern"><input name="model" placeholder="Pro/Premium/etc"><input name="stern_machine_id" placeholder="Stern machine ID">
+<input name="purchase_date" type="date"><input name="purchase_cost" type="number" step="0.01" placeholder="Purchase cost"><input name="odometer_baseline" type="number" value="0"><textarea name="notes" placeholder="Notes"></textarea><button>Add machine</button></form>
+{% endblock %}
