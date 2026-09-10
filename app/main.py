@@ -12,7 +12,7 @@ from sqlalchemy import (
     create_engine, String, Integer, DateTime, Date, Numeric, Boolean, ForeignKey,
     Text, select, func, desc, or_
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, joinedload
 from pydantic import BaseModel
 from passlib.hash import bcrypt
 
