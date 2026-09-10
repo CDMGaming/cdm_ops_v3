@@ -293,8 +293,8 @@ def plays_since_previous_collection(s, machine_id:int, collected_at:datetime, pl
 def dashboard(request: Request):
     with db() as s:
         locations=s.scalars(select(Location).where(Location.active==True).order_by(Location.name)).all()
-        machines=s.scalars(select(Machine).order_by(Machine.name)).all()
-        gross=s.scalar(select(func.coalesce(func.sum(Collection.gross_total),0))) or 0
+    machines=s.scalars(select(Machine).options(joinedload(Machine.location)).order_by(Machine.name)).all()
+    gross=s.scalar(select(func.coalesce(func.sum(Collection.gross_total),0))) or 0
         venue=s.scalar(select(func.coalesce(func.sum(Collection.venue_share),0))) or 0
         net=s.scalar(select(func.coalesce(func.sum(Collection.cdm_net),0))) or 0
         last30=datetime.now(timezone.utc)-timedelta(days=30)
