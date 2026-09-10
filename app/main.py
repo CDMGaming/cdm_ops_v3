@@ -3,7 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 import json, os, secrets, uuid
 
-from fastapi import FastAPI, Request, Form, Header, HTTPException
+from fastapi import FastAPI, Request, Form, Header, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -200,27 +200,34 @@ with SessionLocal() as _s:
         _loc.access_token=secrets.token_urlsafe(24)
     _s.commit()
 
-app=FastAPI(title="CDM Ops")
-app.add_middleware(SessionMiddleware, secret_key=APP_SECRET, same_site="lax")
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates=Jinja2Templates(directory="app/templates")
-
 # Routes reachable without a logged-in session. The scraper ingest endpoint and
 # /api/machines have their own API-key check; health is for container
 # healthchecks; login is login; /portal/ is the location-facing receipt view,
 # gated by its own bearer token in the URL instead of a session.
 PUBLIC_PATHS={"/login", "/api/health", "/api/plays/ingest", "/api/machines"}
 
-@app.middleware("http")
-async def require_login(request: Request, call_next):
-    if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/static/") \
-            or request.url.path.startswith("/portal/"):
-        return await call_next(request)
+def require_login(request: Request):
+    """FastAPI dependency (not ASGI middleware) that checks the session cookie.
+    Deliberately NOT implemented as @app.middleware("http") -- that style of
+    middleware (BaseHTTPMiddleware under the hood) does not reliably see what
+    SessionMiddleware sets up, regardless of which order the two are
+    registered in. A dependency runs later in the request lifecycle, after
+    Starlette's ASGI middleware stack (SessionMiddleware included) has already
+    done its job, so it doesn't have that problem."""
+    if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/portal/"):
+        return
     if not request.session.get("authed"):
         if request.method=="GET":
-            return RedirectResponse(f"/login?next={request.url.path}", 303)
+            raise HTTPException(303, headers={"Location": f"/login?next={request.url.path}"})
         raise HTTPException(401, "Not logged in")
-    return await call_next(request)
+
+app=FastAPI(title="CDM Ops", dependencies=[Depends(require_login)])
+app.add_middleware(SessionMiddleware, secret_key=APP_SECRET, same_site="lax")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates=Jinja2Templates(directory="app/templates")
+# /static/* is served by the StaticFiles mount above, which is a separate
+# sub-application -- FastAPI's `dependencies=` on the main app doesn't apply to
+# mounted sub-apps, so static files are already unauthenticated automatically.
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, next: str="/"):
