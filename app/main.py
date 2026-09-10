@@ -205,8 +205,6 @@ app.add_middleware(SessionMiddleware, secret_key=APP_SECRET, same_site="lax")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates=Jinja2Templates(directory="app/templates")
 
-# Routes reachable without a logged-in session. The scraper ingest endpoint has
-# its own API-key check; health is for container healthchecks; login is login.
 # Routes reachable without a logged-in session. The scraper ingest endpoint and
 # /api/machines have their own API-key check; health is for container
 # healthchecks; login is login; /portal/ is the location-facing receipt view,
@@ -449,6 +447,26 @@ def add_purchase(purchase_date:str=Form(...),description:str=Form(...),amount:De
         s.add(Purchase(purchase_date=date.fromisoformat(purchase_date),description=description,amount=amount,vendor=vendor or None,
                        paid_by=paid_by or None,trued_up=trued_up,machine_id=machine_id,notes=notes or None)); s.commit()
     return RedirectResponse("/purchases",303)
+
+@app.get("/partners", response_class=HTMLResponse)
+def partners_page(request:Request):
+    with db() as s: partners=s.scalars(select(Partner).order_by(Partner.name)).all()
+    return templates.TemplateResponse("partners.html",{"request":request,"partners":partners})
+
+@app.post("/partners")
+def add_partner(name:str=Form(...),ownership_pct:Decimal=Form(0)):
+    with db() as s:
+        if not s.scalar(select(Partner).where(Partner.name==name)):
+            s.add(Partner(name=name,ownership_pct=ownership_pct)); s.commit()
+    return RedirectResponse("/partners",303)
+
+@app.post("/partners/{partner_id}/toggle-active")
+def toggle_partner_active(partner_id:int):
+    with db() as s:
+        p=s.get(Partner, partner_id)
+        if not p: raise HTTPException(404,"Partner not found")
+        p.active=not p.active; s.commit()
+    return RedirectResponse("/partners",303)
 
 class PlayRow(BaseModel):
     stern_machine_id:str
